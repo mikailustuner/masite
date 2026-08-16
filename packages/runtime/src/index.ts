@@ -57,12 +57,16 @@ export const workerEnvironmentSchema = baseEnvironmentSchema.extend({
   CHROMIUM_EXECUTABLE_PATH: z.string().min(1).default("/usr/bin/chromium"),
   RENDER_TIMEOUT_MS: integerString(1000, 120_000).default(30_000),
   CRUX_API_KEY: z.string().optional(),
-  SERP_PROVIDER: z.enum(["disabled", "generic"]).default("disabled"),
+  CRUX_API_BASE_URL: optionalUrl.default("https://chromeuxreport.googleapis.com/v1/records:queryRecord"),
+  SERP_PROVIDER: z.enum(["disabled", "generic", "serper"]).default("disabled"),
   SERP_API_BASE_URL: optionalUrl,
   SERP_API_KEY: z.string().optional(),
+  SERP_DAILY_QUERY_LIMIT: integerString(1, 1000).default(50),
   BACKLINK_PROVIDER: z.enum(["disabled", "generic"]).default("disabled"),
   BACKLINK_API_BASE_URL: optionalUrl,
   BACKLINK_API_KEY: z.string().optional(),
+  OPENPAGERANK_API_BASE_URL: optionalUrl.default("https://openpagerank.keywordseverywhere.com/"),
+  OPENPAGERANK_API_KEY: z.string().optional(),
   ALLOW_UNENCRYPTED_EVIDENCE: booleanString.default(false),
 }).superRefine((value, context) => {
   if (value.SERP_PROVIDER === "generic" && (!value.SERP_API_BASE_URL || !value.SERP_API_KEY)) context.addIssue({ code: "custom", message: "SERP_API_BASE_URL and SERP_API_KEY are required for the generic SERP provider." });

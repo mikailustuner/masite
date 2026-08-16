@@ -7,7 +7,11 @@ import type { IntelligenceCandidate } from "../intelligenceEngine.js";
 
 export async function collectExternalIntelligence(origin: string, environment: WorkerEnvironment): Promise<IntelligenceCandidate[]> {
   const url = normalizePublicUrl(origin, environment.CRAWLER_ALLOWED_PORTS);
-  const results = await Promise.allSettled([collectDns(url.hostname), collectTls(url, environment), collectSecurityTxt(url, environment), collectCrux(url.origin, environment.CRUX_API_KEY)]);
+  const results = await Promise.allSettled([
+    collectDns(url.hostname), collectTls(url, environment), collectSecurityTxt(url, environment),
+    collectCrux(url.origin, environment.CRUX_API_BASE_URL, environment.CRUX_API_KEY),
+    collectOpenPageRank(url.hostname, environment.OPENPAGERANK_API_BASE_URL, environment.OPENPAGERANK_API_KEY),
+  ]);
   return results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
 }
 
@@ -46,9 +50,11 @@ async function collectSecurityTxt(url: URL, environment: WorkerEnvironment): Pro
   } catch (error) { return [candidate(url.hostname, "trust", "security-txt-unreachable", 25, "strong_inference", "security.txt doğrulanamadı", `${securityUrl} isteği tamamlanamadı.`, error instanceof Error ? error.message : "Fetch failed", "Tek istek hatası dosyanın genel olarak erişilemez olduğunu kanıtlamaz.", "Güvenlik bildirim kanalı doğrulanamadı.", "Well-known security.txt yayınını ve WAF davranışını kontrol edin.", "Aynı dış ölçüm noktasından yeniden test edin.", "http_security_txt", "SSRF korumalı pasif GET isteği.", { url: securityUrl })]; }
 }
 
-async function collectCrux(origin: string, apiKey?: string): Promise<IntelligenceCandidate[]> {
+async function collectCrux(origin: string, baseUrl: string | undefined, apiKey?: string): Promise<IntelligenceCandidate[]> {
   if (!apiKey) return [];
-  const response = await fetch(`https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ origin, formFactor: "PHONE", metrics: ["largest_contentful_paint", "interaction_to_next_paint", "cumulative_layout_shift"] }), signal: AbortSignal.timeout(15_000) });
+  const endpoint = new URL(baseUrl ?? "https://chromeuxreport.googleapis.com/v1/records:queryRecord");
+  endpoint.searchParams.set("key", apiKey);
+  const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ origin, formFactor: "PHONE", metrics: ["largest_contentful_paint", "interaction_to_next_paint", "cumulative_layout_shift"] }), signal: AbortSignal.timeout(15_000) });
   if (response.status === 404) return [];
   if (!response.ok) throw new Error(`CrUX request failed with HTTP ${response.status}`);
   const payload = await response.json() as { record?: { metrics?: Record<string, { percentiles?: { p75?: number | string } }>; collectionPeriod?: unknown } };
@@ -56,6 +62,24 @@ async function collectCrux(origin: string, apiKey?: string): Promise<Intelligenc
   const poor = lcp > 2500 || inp > 200 || cls > 0.1;
   if (!poor) return [];
   return [candidate(new URL(origin).hostname, "performance", "crux-field-vitals", 88, "proven", "CrUX mobil field eşikleri karşılanmıyor", `Origin p75 değerleri LCP=${lcp}ms, INP=${inp}ms, CLS=${cls}.`, JSON.stringify({ lcpP75: lcp, inpP75: inp, clsP75: cls, collectionPeriod: payload.record?.collectionPeriod }), "CrUX uygun Chrome kullanıcılarından toplulaştırılmış field verisidir; tüm kullanıcıları veya tek URL’yi temsil etmeyebilir.", "Gerçek kullanıcı deneyiminin en az bir Core Web Vital boyutunda önerilen eşiği aşma riski vardır.", "CrUX trendini lab trace ve template örnekleriyle eşleştirerek LCP/INP/CLS kök nedenini giderin.", "Sonraki 28 günlük CrUX döneminde p75 değerlerini ve aynı cihaz profili lab ölçümünü izleyin.", "crux_api", "CrUX API PHONE origin record; p75 eşik karşılaştırması.", { origin, formFactor: "PHONE", lcpP75: lcp, inpP75: inp, clsP75: cls, collectionPeriod: payload.record?.collectionPeriod })];
+}
+
+async function collectOpenPageRank(hostname: string, baseUrl: string | undefined, apiKey?: string): Promise<IntelligenceCandidate[]> {
+  if (!apiKey) return [];
+  const response = await fetch(new URL("v1/domains/bulk", baseUrl ?? "https://openpagerank.keywordseverywhere.com/"), {
+    method: "POST", headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ domains: [hostname], include_history: false }), signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new Error(`OpenPageRank request failed with HTTP ${response.status}`);
+  const payload = await response.json() as { as_of?: string; results?: Array<{ domain?: string; found?: boolean; open_page_rank?: number | null; rank?: number | null; referring_domains?: number | null; hosts?: Array<{ host?: string; found?: boolean; open_page_rank?: number | null; rank?: number | null; referring_hosts?: number | null }> }> };
+  const domainResult = payload.results?.[0];
+  const hostResult = domainResult?.hosts?.find((item) => item.host?.toLowerCase() === hostname.toLowerCase() && item.found !== false);
+  const score = hostResult?.open_page_rank ?? domainResult?.open_page_rank;
+  const globalRank = hostResult?.rank ?? domainResult?.rank;
+  const referringDomains = hostResult?.referring_hosts ?? domainResult?.referring_domains;
+  if (score == null) return [];
+  const measuredName = hostResult?.host ?? domainResult?.domain ?? hostname;
+  return [candidate(hostname, "competitor", "open-page-rank-baseline", 30, "proven", "Dış otorite karşılaştırma taban çizgisi ölçüldü", `${measuredName} için OpenPageRank ${score}/10 ve tahmini referring-domain/host sayısı ${referringDomains ?? "ölçülmedi"}.`, JSON.stringify({ asOf: payload.as_of, domain: domainResult, selectedHost: hostResult }), "Sağlayıcı metriği Common Crawl web grafiğinden üretilen bir tahmindir; Google sıralama faktörü, backlink kalitesi veya gerçek trafik değildir.", "Rakiplerle aynı tarih ve sağlayıcı üzerinden karşılaştırıldığında dış bağlantı grafiğindeki göreli farkı incelemeye yardımcı olabilir.", "Skoru tek başına hedeflemeyin; rakip farkını ilgili yayınlar, link kaynakları ve marka talebiyle birlikte araştırın.", "Aylık aynı sağlayıcı ölçümünü ve mümkünse lisanslı backlink örneklemesini karşılaştırın.", "openpagerank_api", "OpenPageRank current domain/host metric; include_history=false.", { hostname, asOf: payload.as_of, openPageRank: score, globalRank, referringDomainsOrHosts: referringDomains })];
 }
 
 function candidate(hostname: string, module: string, rule: string, priority: number, confidence: "proven" | "strong_inference" | "hypothesis", title: string, observation: string, evidenceSummary: string, inference: string, impact: string, recommendation: string, verification: string, source: string, methodology: string, measurement: Record<string, unknown>): IntelligenceCandidate {

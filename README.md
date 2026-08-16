@@ -2,7 +2,7 @@
 
 Evidera; DNS, Search Console, Analytics veya reklam hesabı erişimi olmadan çalışan, kanıt odaklı dış web sitesi istihbarat platformudur. Her bulgu gözlem, kanıt, çıkarım sınırı, etki, öneri ve doğrulama adımını ayrı tutar.
 
-Ayrıntılı ürün/mimari planı [dis-web-sitesi-istihbarat-platformu-plani.md](./dis-web-sitesi-istihbarat-platformu-plani.md), güncel üretim matrisi [docs/IMPLEMENTATION_STATUS.md](./docs/IMPLEMENTATION_STATUS.md) dosyasındadır.
+Ayrıntılı ürün/mimari planı [dis-web-sitesi-istihbarat-platformu-plani.md](./dis-web-sitesi-istihbarat-platformu-plani.md), güncel üretim matrisi [docs/IMPLEMENTATION_STATUS.md](./docs/IMPLEMENTATION_STATUS.md), ücretsiz API key rehberi ise [docs/FREE_DATA_PROVIDERS.md](./docs/FREE_DATA_PROVIDERS.md) dosyasındadır.
 
 ## Mimari
 

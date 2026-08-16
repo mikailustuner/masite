@@ -79,12 +79,17 @@ services:
       CRAWLER_USER_AGENT: ${CRAWLER_USER_AGENT:?set CRAWLER_USER_AGENT}
       CRAWLER_CONTACT_URL: ${CRAWLER_CONTACT_URL:?set CRAWLER_CONTACT_URL}
       CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium
+      CRUX_API_KEY: ${CRUX_API_KEY:-}
+      CRUX_API_BASE_URL: ${CRUX_API_BASE_URL:-https://chromeuxreport.googleapis.com/v1/records:queryRecord}
       SERP_PROVIDER: ${SERP_PROVIDER:-disabled}
       SERP_API_BASE_URL: ${SERP_API_BASE_URL:-}
       SERP_API_KEY: ${SERP_API_KEY:-}
+      SERP_DAILY_QUERY_LIMIT: ${SERP_DAILY_QUERY_LIMIT:-50}
       BACKLINK_PROVIDER: ${BACKLINK_PROVIDER:-disabled}
       BACKLINK_API_BASE_URL: ${BACKLINK_API_BASE_URL:-}
       BACKLINK_API_KEY: ${BACKLINK_API_KEY:-}
+      OPENPAGERANK_API_BASE_URL: ${OPENPAGERANK_API_BASE_URL:-https://openpagerank.keywordseverywhere.com/}
+      OPENPAGERANK_API_KEY: ${OPENPAGERANK_API_KEY:-}
     depends_on: { migrate: { condition: service_completed_successfully }, redis: { condition: service_healthy }, create-bucket: { condition: service_completed_successfully } }
     networks: [backend]
 

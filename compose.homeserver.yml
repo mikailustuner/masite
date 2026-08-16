@@ -137,12 +137,16 @@ services:
       CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium
       RENDER_TIMEOUT_MS: 30000
       CRUX_API_KEY: ${CRUX_API_KEY:-}
+      CRUX_API_BASE_URL: ${CRUX_API_BASE_URL:-https://chromeuxreport.googleapis.com/v1/records:queryRecord}
       SERP_PROVIDER: ${SERP_PROVIDER:-disabled}
       SERP_API_BASE_URL: ${SERP_API_BASE_URL:-}
       SERP_API_KEY: ${SERP_API_KEY:-}
+      SERP_DAILY_QUERY_LIMIT: ${SERP_DAILY_QUERY_LIMIT:-50}
       BACKLINK_PROVIDER: ${BACKLINK_PROVIDER:-disabled}
       BACKLINK_API_BASE_URL: ${BACKLINK_API_BASE_URL:-}
       BACKLINK_API_KEY: ${BACKLINK_API_KEY:-}
+      OPENPAGERANK_API_BASE_URL: ${OPENPAGERANK_API_BASE_URL:-https://openpagerank.keywordseverywhere.com/}
+      OPENPAGERANK_API_KEY: ${OPENPAGERANK_API_KEY:-}
       ALLOW_UNENCRYPTED_EVIDENCE: "true"
     depends_on:
       bootstrap: { condition: service_completed_successfully }

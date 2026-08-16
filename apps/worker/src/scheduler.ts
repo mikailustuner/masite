@@ -23,7 +23,7 @@ export function createScheduler(input: { database: DatabaseClient; environment: 
         return tx.select().from(auditSchedules).where(and(eq(auditSchedules.enabled, true), lte(auditSchedules.nextRunAt, new Date()))).limit(100);
       });
       await input.database.db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
-      if (serpProvider) await refreshRanks(input.database, serpProvider);
+      if (serpProvider) await refreshRanks(input.database, serpProvider, input.environment.SERP_DAILY_QUERY_LIMIT);
       for (const schedule of due) {
         const run = await withTenant(input.database.db, schedule.organizationId, async (tx) => {
           const [created] = await tx.insert(auditRuns).values({ organizationId: schedule.organizationId, siteId: schedule.siteId, mode: schedule.mode, analyzerVersion: "crawler/0.2.0" }).returning();
@@ -48,10 +48,10 @@ export function createScheduler(input: { database: DatabaseClient; environment: 
   };
 }
 
-async function refreshRanks(database: DatabaseClient, provider: NonNullable<ReturnType<typeof createSerpProvider>>): Promise<void> {
+async function refreshRanks(database: DatabaseClient, provider: NonNullable<ReturnType<typeof createSerpProvider>>, dailyQueryLimit: number): Promise<void> {
   const organizationRows = await database.db.select({ id: organizations.id }).from(organizations).limit(1000);
   const cutoff = new Date(Date.now() - 23 * 60 * 60 * 1000);
-  let remaining = 100;
+  let remaining = dailyQueryLimit;
   for (const organization of organizationRows) {
     if (remaining <= 0) break;
     const candidates = await withTenant(database.db, organization.id, (tx) => tx.select({ id: keywords.id, term: keywords.term, locale: keywords.locale, device: keywords.device, location: keywords.location, siteId: keywords.siteId, domain: sites.normalizedHost }).from(keywords).innerJoin(sites, eq(keywords.siteId, sites.id)).where(eq(keywords.active, true)).limit(Math.min(remaining, 500)));
@@ -63,7 +63,7 @@ async function refreshRanks(database: DatabaseClient, provider: NonNullable<Retu
       try {
         const result = await provider.rank({ keyword: candidate.term, locale: candidate.locale, device: candidate.device, location: candidate.location, domain: candidate.domain });
         await withTenant(database.db, organization.id, async (tx) => {
-          await tx.insert(rankObservations).values({ organizationId: organization.id, keywordId: candidate.id, position: result.position, resultUrl: result.url, serpFeatures: result.features, provider: "generic" });
+          await tx.insert(rankObservations).values({ organizationId: organization.id, keywordId: candidate.id, position: result.position, resultUrl: result.url, serpFeatures: result.features, provider: provider.name });
           if (result.searchVolume !== undefined) await tx.update(keywords).set({ searchVolume: result.searchVolume, updatedAt: new Date() }).where(eq(keywords.id, candidate.id));
         });
       } catch (error) { process.stderr.write(`${JSON.stringify({ level: "warn", event: "serp.rank.failed", keywordId: candidate.id, error: error instanceof Error ? error.message : "SERP request failed" })}\n`); }

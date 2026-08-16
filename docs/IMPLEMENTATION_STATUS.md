@@ -34,7 +34,7 @@ Bu belge kod tabanının mevcut durumunu dürüstçe kaydeder. Bir özelliğin e
 - Erişilebilirlik skoru render edilen sınırlı örnek sayfalardaki axe ihlallerinden türetilir; manuel WCAG uygunluk belgesi değildir.
 - Visibility sadece yapılandırılmış SERP sağlayıcısının gerçekten topladığı rank observation kayıtlarından hesaplanır.
 - Reklam briefleri kampanya performansı iddia etmez. Dış sayfa kanıtı, anahtar kelime ve danışman hipotezlerini düzenler.
-- Backlink, Google Ads ve Meta Ad Library için ortam değişkenleri hazırlıdır; lisanslı sağlayıcı sözleşmesi verilmeden hesap/sağlayıcı verisi üretilmez. CrUX adaptörü mevcuttur ancak yalnızca `CRUX_API_KEY` verilirse ölçüm yapar.
+- Native Serper, CrUX ve OpenPageRank adaptörleri hazırdır; key yokken entegrasyon sessizce pasif kalır. Ayrıntılı backlink satırları, Google Ads ve Meta Ad Library verileri için lisanslı/izinli sağlayıcı olmadan veri üretilmez.
 - Harici gözlem dönüşüm, trafik, gelir, indekslenme veya reklam hesabı sonucu kanıtlayamaz.
 
 ## Home-server çalışma profili
