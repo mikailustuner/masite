@@ -41,7 +41,7 @@ Bu belge kod tabanının mevcut durumunu dürüstçe kaydeder. Bir özelliğin e
 
 - Yalnızca web servisi Tailscale IP’sine açılır; PostgreSQL, Redis ve MinIO yalnızca internal Docker ağındadır.
 - `.env.homeserver` gerçek, rastgele üretilmiş secret’ları içerir, `0600` iznindedir ve Git tarafından izlenmez.
-- `./scripts/homeserver-up.sh` önkoşulları ve Tailscale IP atamasını denetler; imajları build edip hazır olana kadar bekler.
+- `./scripts/homeserver-up.sh` önkoşulları ve Tailscale IP atamasını denetler; `8080` doluysa güvenli aralıktan boş port seçer, imajları build edip hazır olana kadar bekler.
 - Home-server MinIO profili KMS kullanmadığı için uygulama katmanı SSE kapalıdır; fiziksel disk/volume şifrelemesi gereklidir.
 - Veritabanı yedeği `./scripts/homeserver-backup.sh` ile `backups/` altında izinleri kısıtlı PostgreSQL custom dump olarak alınır.
 
