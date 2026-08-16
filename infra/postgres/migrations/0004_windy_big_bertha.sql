@@ -1,0 +1,1 @@
+ALTER TABLE "issues" ADD COLUMN "inference" text DEFAULT 'Nedensellik veya gerçek iş etkisi harici gözlemle doğrulanamaz.' NOT NULL;

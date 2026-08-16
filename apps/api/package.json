@@ -1,0 +1,35 @@
+{
+  "name": "@evidera/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.888.0",
+    "@evidera/database": "*",
+    "@evidera/runtime": "*",
+    "@evidera/contracts": "*",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.1.0",
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/rate-limit": "^10.3.0",
+    "bullmq": "^5.58.5",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.6.0",
+    "ioredis": "^5.7.0",
+    "pdfkit": "^0.17.2"
+  },
+  "devDependencies": {
+    "@types/pdfkit": "^0.17.3",
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
