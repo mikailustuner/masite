@@ -10,3 +10,4 @@ test-results/
 *.log
 backups/
 .DS_Store
+.codex/

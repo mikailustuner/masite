@@ -18,6 +18,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - run: npm run security:secrets
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
