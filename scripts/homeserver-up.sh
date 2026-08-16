@@ -42,7 +42,8 @@ port_is_used_by_other_service() {
   candidate_port="$1"
   owners=$(docker ps --filter "publish=$candidate_port" --format '{{.Names}}' 2>/dev/null || true)
   if [ -n "$owners" ]; then
-    echo "$owners" | grep -Eq '^evidera-homeserver-web-[0-9]+$' && return 1
+    non_evidera_owners=$(echo "$owners" | grep -Ev '^evidera-homeserver-web-[0-9]+$' || true)
+    [ -z "$non_evidera_owners" ] && return 1
     return 0
   fi
   if command -v ss >/dev/null 2>&1 && ss -H -ltn "sport = :$candidate_port" 2>/dev/null | grep -q .; then
