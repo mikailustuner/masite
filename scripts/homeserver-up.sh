@@ -75,13 +75,39 @@ export WEB_PORT PUBLIC_APP_URL CRAWLER_CONTACT_URL CRAWLER_USER_AGENT
 HEALTH_URL="${PUBLIC_APP_URL%/}/api/health/ready"
 
 cd "$PROJECT_DIR"
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build --remove-orphans
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d postgres redis minio
+
+attempt=0
+until [ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps -q postgres)" 2>/dev/null || true)" = "healthy" ]; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 60 ]; then
+    echo "PostgreSQL did not become healthy." >&2
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" logs --no-color --tail=200 postgres >&2
+    exit 1
+  fi
+  sleep 2
+done
+
+if ! "$PROJECT_DIR/scripts/homeserver-db-reconcile.sh"; then
+  echo "PostgreSQL role reconciliation failed. Existing data was not removed." >&2
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" logs --no-color --tail=200 postgres >&2
+  exit 1
+fi
+
+if ! docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build --remove-orphans; then
+  echo "Evidera startup failed. Diagnostic logs follow; existing volumes were preserved." >&2
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps -a >&2 || true
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" logs --no-color --tail=250 migrate bootstrap postgres >&2 || true
+  exit 1
+fi
 
 attempt=0
 until curl --fail --silent --show-error "$HEALTH_URL" >/dev/null; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 60 ]; then
-    echo "Evidera did not become ready. Run: ./scripts/homeserver-logs.sh" >&2
+    echo "Evidera did not become ready. Relevant logs follow." >&2
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps -a >&2 || true
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" logs --no-color --tail=250 api worker web migrate bootstrap >&2 || true
     exit 1
   fi
   sleep 2

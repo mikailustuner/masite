@@ -69,7 +69,7 @@ Home server üzerinde repository dizininde tek komut yeterlidir:
 ./scripts/homeserver-up.sh
 ```
 
-Betik `.env.homeserver` yoksa güçlü rastgele secret’larla otomatik oluşturur; imajları build eder, PostgreSQL runtime rolünü kurar, migration’ları uygular, private evidence bucket’ını ve ilk owner hesabını oluşturur, health check başarılı olana kadar bekler. `8080` başka bir servis tarafından kullanılıyorsa `8081–8099` aralığından boş port otomatik seçilir ve sonuç ekrana yazılır. Varsayılan arayüz:
+Betik `.env.homeserver` yoksa güçlü rastgele secret’larla otomatik oluşturur; eski volume içindeki PostgreSQL rol parolalarını veri silmeden mevcut ortamla eşitler, imajları build eder, migration’ları uygular, private evidence bucket’ını ve ilk owner hesabını oluşturur, health check başarılı olana kadar bekler. `8080` başka bir servis tarafından kullanılıyorsa `8081–8099` aralığından boş port otomatik seçilir ve sonuç ekrana yazılır. Varsayılan arayüz:
 
 ```text
 http://100.104.207.55:8080
