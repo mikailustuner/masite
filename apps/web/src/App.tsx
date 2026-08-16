@@ -27,6 +27,7 @@ export function App() {
 function Workspace({ session, onLogout }: { session: UserSession; onLogout: () => void }) {
   const [activePage, setActivePage] = useState<PageId>(pageFromPath);
   const [sites, setSites] = useState<SiteSummary[]>([]);
+  const [sitesLoading, setSitesLoading] = useState(true);
   const [activeSiteId, setActiveSiteId] = useState("");
   const [issues, setIssues] = useState<AuditIssue[]>([]);
   const [selectedIssue, setSelectedIssue] = useState<AuditIssue | null>(null);
@@ -42,7 +43,11 @@ function Workspace({ session, onLogout }: { session: UserSession; onLogout: () =
       setSites(rows);
       setActiveSiteId((current) => rows.some((site) => site.id === current) ? current : rows[0]?.id ?? "");
       setLoadError(null);
-    } catch (error) { setLoadError(messageOf(error)); }
+    } catch (error) {
+      setLoadError(messageOf(error));
+    } finally {
+      setSitesLoading(false);
+    }
   }, []);
   useEffect(() => { void loadSites(); }, [loadSites]);
   useEffect(() => {
@@ -72,14 +77,14 @@ function Workspace({ session, onLogout }: { session: UserSession; onLogout: () =
   };
   const logout = async () => { await api.logout().catch(() => undefined); onLogout(); };
 
-  if (sites.length === 0 && !loadError) return <div className="app-loading"><LoaderCircle className="spinning" /><span>Siteler yükleniyor…</span></div>;
+  if (sitesLoading) return <div className="app-loading"><LoaderCircle className="spinning" /><span>Siteler yükleniyor…</span></div>;
   return (
     <div className="app-shell">
       <Sidebar activePage={activePage} isOpen={sidebarOpen} onNavigate={navigate} onClose={() => setSidebarOpen(false)} siteCount={sites.length} issueCount={sites.reduce((sum,site)=>sum+site.openIssues,0)} userName={session.user.displayName} role={session.role} />
       <div className="main-shell">
         {activeSite && <Topbar sites={sites} activeSite={activeSite} title={pageTitles[activePage]} onSiteChange={setActiveSiteId} onMenuOpen={() => setSidebarOpen(true)} onNewScan={() => setScanModalOpen(true)} />}
         <main className="main-content">
-          {loadError && <div className="app-error" role="alert">{loadError}<button onClick={() => { setLoadError(null); void loadSites(); }}>Yeniden dene</button></div>}
+          {loadError && <div className="app-error" role="alert">{loadError}<button onClick={() => { setLoadError(null); setSitesLoading(true); void loadSites(); }}>Yeniden dene</button></div>}
           {!activeSite ? <EmptyPortfolio onAdd={() => setSiteModalOpen(true)} /> : <>
             {activePage === "overview" && <OverviewPage activeSite={activeSite} sites={sites} issues={issues} onOpenIssue={openIssue} onViewIssues={() => navigate("issues")} onViewSites={() => navigate("sites")} />}
             {activePage === "sites" && <SitesPage sites={sites} onAddSite={() => setSiteModalOpen(true)} onSelectSite={(id) => { setActiveSiteId(id); navigate("overview"); }} />}
