@@ -72,7 +72,8 @@ CRAWLER_CONTACT_URL="$PUBLIC_APP_URL/bot"
 CRAWLER_USER_AGENT="EvideraBot/0.1 (+$CRAWLER_CONTACT_URL)"
 export WEB_PORT PUBLIC_APP_URL CRAWLER_CONTACT_URL CRAWLER_USER_AGENT
 
-HEALTH_URL="${PUBLIC_APP_URL%/}/api/health/ready"
+API_HEALTH_URL="${PUBLIC_APP_URL%/}/api/health/ready"
+UI_HEALTH_URL="${PUBLIC_APP_URL%/}/"
 
 cd "$PROJECT_DIR"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d postgres redis minio
@@ -102,7 +103,7 @@ if ! docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build --re
 fi
 
 attempt=0
-until curl --fail --silent --show-error "$HEALTH_URL" >/dev/null; do
+until curl --fail --silent --max-time 5 "$API_HEALTH_URL" >/dev/null 2>&1 && curl --fail --silent --max-time 5 "$UI_HEALTH_URL" >/dev/null 2>&1; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 60 ]; then
     echo "Evidera did not become ready. Relevant logs follow." >&2

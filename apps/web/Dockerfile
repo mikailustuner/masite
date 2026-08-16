@@ -7,8 +7,10 @@ RUN npm ci
 COPY apps/web apps/web
 COPY packages/contracts packages/contracts
 RUN npm run build --workspace @evidera/web
+RUN test -s /app/apps/web/dist/index.html
 
 FROM nginx:1.27-alpine
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+COPY --from=build --chown=nginx:nginx /app/apps/web/dist /usr/share/nginx/html
+RUN test -s /usr/share/nginx/html/index.html
 EXPOSE 80
