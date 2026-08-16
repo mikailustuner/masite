@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { AuditIssue, EvidenceConfidence, IssueSeverity, SiteSummary } from "@evidera/contracts";
 import { useMemo, useState } from "react";
+import { copyText } from "../lib/browser";
 
 interface IssuesPageProps {
   activeSite: SiteSummary;
@@ -50,12 +51,16 @@ const categoryLabel = {
 export function IssuesPage({ activeSite, issues, selectedIssue, onSelectIssue, onUpdateState }: IssuesPageProps) {
   const [query, setQuery] = useState("");
   const [severity, setSeverity] = useState<IssueSeverity | "all">("all");
+  const [category, setCategory] = useState<AuditIssue["category"] | "all">("all");
+  const [status, setStatus] = useState<AuditIssue["status"] | "all">("all");
   const siteIssues = useMemo(() => issues.filter((issue) => {
     const matchesSite = issue.siteId === activeSite.id;
     const matchesQuery = issue.title.toLocaleLowerCase("tr").includes(query.toLocaleLowerCase("tr"));
     const matchesSeverity = severity === "all" || issue.severity === severity;
-    return matchesSite && matchesQuery && matchesSeverity;
-  }), [activeSite.id, issues, query, severity]);
+    const matchesCategory = category === "all" || issue.category === category;
+    const matchesStatus = status === "all" || issue.status === status;
+    return matchesSite && matchesQuery && matchesSeverity && matchesCategory && matchesStatus;
+  }), [activeSite.id, category, issues, query, severity, status]);
 
   if (selectedIssue) {
     return <IssueDetail issue={selectedIssue} onBack={() => onSelectIssue(null)} onUpdateState={onUpdateState} />;
@@ -88,7 +93,8 @@ export function IssuesPage({ activeSite, issues, selectedIssue, onSelectIssue, o
             </button>
           ))}
         </div>
-        <button className="secondary-button compact"><Filter size={16} /> Diğer filtreler <ChevronDown size={14} /></button>
+        <label className="compact-select"><Filter size={15}/><select aria-label="Kategori filtresi" value={category} onChange={(event) => setCategory(event.target.value as typeof category)}><option value="all">Tüm kategoriler</option>{Object.entries(categoryLabel).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><ChevronDown size={13}/></label>
+        <label className="compact-select"><select aria-label="Durum filtresi" value={status} onChange={(event) => setStatus(event.target.value as typeof status)}><option value="all">Tüm durumlar</option><option value="new">Yeni</option><option value="confirmed">Onaylandı</option><option value="shared">Paylaşıldı</option><option value="in-progress">Uygulanıyor</option><option value="resolved">Çözüldü</option></select><ChevronDown size={13}/></label>
       </section>
 
       <section className="surface-card data-table-card">
@@ -106,7 +112,7 @@ export function IssuesPage({ activeSite, issues, selectedIssue, onSelectIssue, o
               </div>
               <div className="table-scope"><strong>{issue.affectedUrls}</strong><span>URL · {issue.affectedTemplates.join(", ")}</span></div>
               <span className={`confidence-chip confidence-${issue.confidence}`}><ShieldCheck size={13} /> {confidenceLabel[issue.confidence]}</span>
-              <span className={`status-chip status-${issue.status}`}>{issue.status === "in-progress" ? "Uygulanıyor" : issue.status === "shared" ? "Paylaşıldı" : issue.status === "confirmed" ? "Onaylandı" : "Yeni"}</span>
+              <span className={`status-chip status-${issue.status}`}>{statusLabel(issue.status)}</span>
               <span className={`severity-chip severity-${issue.severity}`}>{severityLabel[issue.severity]}</span>
             </button>
           ))}
@@ -132,19 +138,19 @@ function IssueDetail({ issue, onBack, onUpdateState }: { issue: AuditIssue; onBa
           <h2>{issue.title}</h2>
           <p>{issue.summary}</p>
         </div>
-        <div className="issue-actions"><button className="secondary-button" onClick={() => void onUpdateState(issue.id,"resolved")}>Çözüldü</button><button className="primary-button" onClick={() => void onUpdateState(issue.id,"shared")}>Müşteriye gönder</button></div>
+        <div className="issue-actions"><button className="secondary-button" onClick={() => void onUpdateState(issue.id,"resolved")}>Çözüldü olarak işaretle</button><button className="primary-button" onClick={() => void onUpdateState(issue.id,"shared")}>Paylaşıldı olarak işaretle</button></div>
       </section>
 
       <section className="issue-detail-layout">
         <div className="detail-main-column">
           <article className="surface-card detail-section evidence-card">
-            <div className="detail-section-title"><FileCode2 size={18} /><div><h3>Kanıt</h3><span>{issue.evidence.length || 1} doğrulanabilir gözlem</span></div></div>
+            <div className="detail-section-title"><FileCode2 size={18} /><div><h3>Kanıt</h3><span>{issue.evidence.length} doğrulanabilir gözlem</span></div></div>
             {issue.evidence.length > 0 ? issue.evidence.map((evidence) => (
               <div className="evidence-item" key={evidence.id}>
                 <div className="evidence-heading"><strong>{evidence.label}</strong><span>{new Date(evidence.capturedAt).toLocaleString("tr-TR")}</span></div>
                 {evidence.sourceUrl && <a href={evidence.sourceUrl} target="_blank" rel="noreferrer">{evidence.sourceUrl}<ExternalLink size={13} /></a>}
                 {evidence.artifactKey && <a href={`/api/evidence/${evidence.id}/artifact`} target="_blank" rel="noreferrer">Ekran görüntüsü kanıtını aç <ExternalLink size={13}/></a>}
-                <pre><code>{evidence.value}</code><button aria-label="Kanıtı kopyala" onClick={() => void navigator.clipboard.writeText(evidence.value)}><Clipboard size={14} /></button></pre>
+                <pre><code>{evidence.value}</code><button aria-label="Kanıtı kopyala" onClick={() => void copyText(evidence.value)}><Clipboard size={14} /></button></pre>
               </div>
             )) : (
               <div className="evidence-placeholder"><ShieldCheck size={20} /><span>Ham kanıt tarama kaydında saklanıyor ve rapor oluşturulurken buraya bağlanacak.</span></div>
@@ -193,3 +199,5 @@ function IssueDetail({ issue, onBack, onUpdateState }: { issue: AuditIssue; onBa
     </div>
   );
 }
+
+function statusLabel(status: AuditIssue["status"]): string { return status === "in-progress" ? "Uygulanıyor" : status === "shared" ? "Paylaşıldı" : status === "confirmed" ? "Onaylandı" : status === "resolved" ? "Çözüldü" : status === "accepted-risk" ? "Risk kabulü" : status === "regressed" ? "Tekrarladı" : "Yeni"; }

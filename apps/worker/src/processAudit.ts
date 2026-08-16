@@ -118,16 +118,32 @@ export function createAuditProcessor(input: { database: DatabaseClient; environm
             if (current.samples.length < 5) current.samples.push({ snapshotId: snapshot.id, url: page.url, screenshotKey: screenshotArtifact?.key ?? null });
             aggregated.set(observation.ruleId, current);
           }
+          await withTenant(database.db, data.organizationId, (transaction) => transaction.update(auditRuns).set({
+            discoveredUrls: crawledPages,
+            renderedUrls: renderedPages,
+            issuesCreated: aggregated.size,
+            summary: { stage: "crawling", processedUrls: crawledPages, renderLimit },
+          }).where(and(eq(auditRuns.id, data.runId), eq(auditRuns.organizationId, data.organizationId))));
           await job.updateProgress(Math.min(95, Math.max(1, crawledPages)));
         },
       });
 
+      await withTenant(database.db, data.organizationId, (transaction) => transaction.update(auditRuns).set({
+        discoveredUrls: crawlResult.discoveredUrls,
+        renderedUrls: renderedPages,
+        issuesCreated: aggregated.size,
+        summary: { stage: "external-intelligence", processedUrls: crawlResult.pages, renderLimit },
+      }).where(and(eq(auditRuns.id, data.runId), eq(auditRuns.organizationId, data.organizationId))));
       const externalIntelligence = await externalIntelligencePromise;
       await withTenant(database.db, data.organizationId, async (transaction) => {
         for (const item of externalIntelligence) await transaction.insert(intelligenceItems).values({ ...item, organizationId: data.organizationId, siteId: data.siteId, auditRunId: data.runId }).onConflictDoUpdate({ target: [intelligenceItems.siteId, intelligenceItems.fingerprint], set: { status: "active", priority: item.priority, confidence: item.confidence, title: item.title, observation: item.observation, evidenceSummary: item.evidenceSummary, inference: item.inference, impact: item.impact, recommendation: item.recommendation, verification: item.verification, source: item.source, methodology: item.methodology, measurement: item.measurement, lastSeenAt: new Date(), updatedAt: new Date(), auditRunId: data.runId } });
       });
 
       const observedIssueIds: string[] = [];
+      await withTenant(database.db, data.organizationId, (transaction) => transaction.update(auditRuns).set({
+        issuesCreated: aggregated.size,
+        summary: { stage: "findings", processedUrls: crawlResult.pages, renderLimit },
+      }).where(and(eq(auditRuns.id, data.runId), eq(auditRuns.organizationId, data.organizationId))));
       for (const [ruleId, item] of aggregated) {
         const fingerprint = createHash("sha256").update(`${site.id}:${ruleId}`).digest("hex");
         const issue = await withTenant(database.db, data.organizationId, async (transaction) => {
@@ -186,7 +202,7 @@ export function createAuditProcessor(input: { database: DatabaseClient; environm
               ...primary,
               kind: "screenshot" as const,
               label: "Render ekran görüntüsü",
-              value: "Bulgunun ölçüldüğü render anındaki tam sayfa görünümü.",
+              value: "Bulgunun ölçüldüğü render anındaki masaüstü görünümü.",
               artifactKey: sample.screenshotKey,
             }] : [primary];
           }));

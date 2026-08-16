@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { createAuditRequestSchema, upsertAuditScheduleRequestSchema } from "@evidera/contracts";
 import { auditRuns, auditSchedules, sites, withTenant, type DatabaseClient } from "@evidera/database";
 import { AppError } from "@evidera/runtime";
@@ -15,6 +15,8 @@ export async function registerAuditRoutes(app: FastifyInstance, options: { datab
     const run = await withTenant(options.database.db, auth.organizationId, async (transaction) => {
       const site = await transaction.query.sites.findFirst({ where: and(eq(sites.id, input.siteId), eq(sites.organizationId, auth.organizationId), eq(sites.status, "active")), columns: { id: true } });
       if (!site) throw new AppError("Etkin site bulunamadı.", "SITE_NOT_FOUND", 404);
+      const activeRun = await transaction.query.auditRuns.findFirst({ where: and(eq(auditRuns.siteId, site.id), eq(auditRuns.organizationId, auth.organizationId), inArray(auditRuns.status, ["queued", "running"])) });
+      if (activeRun) throw new AppError("Bu site için bir denetim zaten arka planda çalışıyor.", "AUDIT_ALREADY_RUNNING", 409);
       const [created] = await transaction.insert(auditRuns).values({
         organizationId: auth.organizationId,
         siteId: site.id,
@@ -41,6 +43,12 @@ export async function registerAuditRoutes(app: FastifyInstance, options: { datab
     const run = await withTenant(options.database.db, auth.organizationId, (transaction) => transaction.query.auditRuns.findFirst({ where: and(eq(auditRuns.id, request.params.runId), eq(auditRuns.organizationId, auth.organizationId)) }));
     if (!run) throw new AppError("Tarama bulunamadı.", "AUDIT_NOT_FOUND", 404);
     return run;
+  });
+
+  app.get("/api/audits/active", { preHandler: requireRole() }, async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new AppError("Oturum gerekli.", "AUTH_REQUIRED", 401);
+    return withTenant(options.database.db, auth.organizationId, (transaction) => transaction.select().from(auditRuns).where(and(eq(auditRuns.organizationId, auth.organizationId), inArray(auditRuns.status, ["queued", "running"]))).orderBy(desc(auditRuns.queuedAt)).limit(100));
   });
 
   app.get<{ Params: { siteId: string } }>("/api/sites/:siteId/audits", { preHandler: requireRole() }, async (request) => {

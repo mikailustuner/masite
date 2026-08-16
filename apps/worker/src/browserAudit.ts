@@ -41,7 +41,7 @@ export async function createBrowserAuditor(origin: string, environment: WorkerEn
           const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
           return navigation ? { domContentLoadedMs: Math.round(navigation.domContentLoadedEventEnd), loadMs: Math.round(navigation.loadEventEnd), transferBytes: navigation.transferSize } : { domContentLoadedMs: null, loadMs: null, transferBytes: null };
         });
-        const screenshot = await page.screenshot({ fullPage: true, type: "jpeg", quality: 72 });
+        const screenshot = await page.screenshot({ fullPage: false, animations: "disabled", timeout: Math.min(8_000, environment.RENDER_TIMEOUT_MS), type: "jpeg", quality: 72 });
         const observations: Observation[] = axeResult.violations.map((violation) => ({
           ruleId: `axe-${violation.id}`, category: "accessibility", title: violation.help,
           severity: violation.impact === "critical" ? "critical" : violation.impact === "serious" ? "high" : violation.impact === "moderate" ? "medium" : "low",

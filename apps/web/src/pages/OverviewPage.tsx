@@ -11,9 +11,12 @@ import {
   ShieldCheck,
   Sparkles,
   TriangleAlert,
+  X,
 } from "lucide-react";
-import type { AuditIssue, SiteSummary } from "@evidera/contracts";
-import { MetricCard, ScoreRing, SegmentedBar, Sparkline } from "../components/Visuals";
+import type { ApiAuditRun, AuditIssue, SiteSummary } from "@evidera/contracts";
+import { useEffect, useState } from "react";
+import { MetricCard, ScoreRing, SegmentedBar } from "../components/Visuals";
+import { api } from "../lib/api";
 
 interface OverviewPageProps {
   activeSite: SiteSummary;
@@ -22,6 +25,7 @@ interface OverviewPageProps {
   onOpenIssue: (issue: AuditIssue) => void;
   onViewIssues: () => void;
   onViewSites: () => void;
+  onSelectSite: (siteId: string) => void;
 }
 
 const severityLabel = {
@@ -41,7 +45,9 @@ const categoryLabel = {
   privacy: "Privacy",
 };
 
-export function OverviewPage({ activeSite, sites, issues, onOpenIssue, onViewIssues, onViewSites }: OverviewPageProps) {
+export function OverviewPage({ activeSite, sites, issues, onOpenIssue, onViewIssues, onViewSites, onSelectSite }: OverviewPageProps) {
+  const [auditHistory,setAuditHistory]=useState<ApiAuditRun[]>([]); const[detailsOpen,setDetailsOpen]=useState(false);
+  useEffect(()=>{void api.audits(activeSite.id).then(setAuditHistory);},[activeSite.id]);
   const activeIssues = issues.filter((issue) => issue.siteId === activeSite.id);
   const portfolioHealth = sites.length ? Math.round(sites.reduce((sum,site)=>sum+site.healthScore,0)/sites.length) : 0;
   const measuredVisibility=sites.map((site)=>site.visibilityScore).filter((value):value is number=>value!==null);
@@ -107,19 +113,13 @@ export function OverviewPage({ activeSite, sites, issues, onOpenIssue, onViewIss
           </div>
           <div className="site-health-list">
             {sites.slice(0, 4).map((site) => (
-              <button key={site.id} className="site-health-row" onClick={onViewSites}>
+              <button key={site.id} className="site-health-row" onClick={() => onSelectSite(site.id)}>
                 <div className={`site-monogram status-${site.status}`}>{site.name.charAt(0)}</div>
                 <div className="site-identity">
                   <strong>{site.name}</strong>
                   <span>{site.domain}</span>
                 </div>
-                <div className="site-mini-chart">
-                  {site.trend !== null && <Sparkline
-                    values={(site.trend ?? 0) >= 0 ? [52, 55, 54, 58, 61, 62, 65] : [68, 67, 69, 65, 63, 61, 58]}
-                    color={(site.trend ?? 0) >= 0 ? "#30b86b" : "#ff453a"}
-                    height={34}
-                  />}
-                </div>
+                <div className="site-mini-chart"><small>{site.lastScanAt ? new Date(site.lastScanAt).toLocaleDateString("tr-TR") : "Ölçülmedi"}</small></div>
                 <div className={`trend-value ${(site.trend ?? 0) >= 0 ? "positive" : "negative"}`}>
                   {site.trend === null ? "—" : `${site.trend >= 0 ? "+" : ""}${site.trend}%`}
                 </div>
@@ -185,7 +185,7 @@ export function OverviewPage({ activeSite, sites, issues, onOpenIssue, onViewIss
               <span className="section-kicker">Kapsam</span>
               <h3>Sorun dağılımı</h3>
             </div>
-            <button className="more-button" aria-label="Dağılım seçenekleri">•••</button>
+            <button className="text-button" onClick={onViewIssues}>Bulguları aç <ChevronRight size={14}/></button>
           </div>
           <div className="distribution-total">
             <strong>{activeIssues.length}</strong>
@@ -216,8 +216,9 @@ export function OverviewPage({ activeSite, sites, issues, onOpenIssue, onViewIss
           <strong>{activeSite.lastScanAt?"Son denetim tamamlandı":"Denetim henüz çalıştırılmadı"}</strong>
           <span>{activeSite.lastScanAt?`${new Date(activeSite.lastScanAt).toLocaleString("tr-TR")} · ${activeIssues.length} açık bulgu`:"Yeni tarama ile HTTP, HTML, render ve axe kanıtlarını toplayın."}</span>
         </div>
-        <button className="secondary-button">Tarama ayrıntıları</button>
+        <button className="secondary-button" onClick={()=>setDetailsOpen(true)}>Tarama ayrıntıları</button>
       </section>
+      {detailsOpen&&<div className="modal-backdrop" onMouseDown={(event)=>event.target===event.currentTarget&&setDetailsOpen(false)}><section className="scan-modal audit-history-modal" role="dialog" aria-modal="true" aria-labelledby="audit-history-title"><button className="modal-close" onClick={()=>setDetailsOpen(false)} aria-label="Kapat"><X size={18}/></button><div className="modal-heading"><span className="section-kicker">Gerçek worker kayıtları</span><h2 id="audit-history-title">Tarama geçmişi</h2><p>{activeSite.name} için son 50 denetim ve işlenen sayaçlar.</p></div><div className="audit-history-list">{auditHistory.map((run)=><article key={run.id}><div><strong>{run.mode === "quick"?"Hızlı":run.mode === "standard"?"Standart":"Derin"} denetim</strong><span>{new Date(run.queuedAt).toLocaleString("tr-TR")}</span></div><span className={`run-status ${run.status}`}>{run.status}</span><dl><div><dt>URL</dt><dd>{run.discoveredUrls}</dd></div><div><dt>Render</dt><dd>{run.renderedUrls}</dd></div><div><dt>Bulgu</dt><dd>{run.issuesCreated}</dd></div></dl>{run.errorMessage&&<p>{run.errorMessage}</p>}</article>)}{auditHistory.length===0&&<div className="empty-state"><ScanSearch size={24}/><strong>Henüz denetim yok</strong><span>İlk çalışma başladığında burada görünür.</span></div>}</div></section></div>}
     </div>
   );
 }

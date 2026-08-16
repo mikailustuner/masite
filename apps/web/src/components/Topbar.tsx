@@ -1,4 +1,4 @@
-import { ChevronDown, Menu, Plus } from "lucide-react";
+import { ChevronDown, LoaderCircle, Menu, Plus } from "lucide-react";
 import type { SiteSummary } from "@evidera/contracts";
 
 interface TopbarProps {
@@ -8,9 +8,10 @@ interface TopbarProps {
   onSiteChange: (siteId: string) => void;
   onMenuOpen: () => void;
   onNewScan: () => void;
+  auditRunning?: boolean;
 }
 
-export function Topbar({ sites, activeSite, title, onSiteChange, onMenuOpen, onNewScan }: TopbarProps) {
+export function Topbar({ sites, activeSite, title, onSiteChange, onMenuOpen, onNewScan, auditRunning = false }: TopbarProps) {
   return (
     <header className="topbar">
       <div className="topbar-title">
@@ -31,9 +32,9 @@ export function Topbar({ sites, activeSite, title, onSiteChange, onMenuOpen, onN
           </select>
           <ChevronDown size={15} />
         </label>
-        <button className="primary-button" onClick={onNewScan} aria-label="Yeni tarama başlat">
-          <Plus size={17} />
-          <span>Yeni tarama</span>
+        <button className="primary-button" onClick={onNewScan} aria-label={auditRunning ? "Denetim arka planda sürüyor" : "Yeni tarama başlat"} disabled={auditRunning}>
+          {auditRunning ? <LoaderCircle className="spinning" size={17}/> : <Plus size={17} />}
+          <span>{auditRunning ? "Denetim sürüyor" : "Yeni tarama"}</span>
         </button>
       </div>
     </header>

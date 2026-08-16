@@ -86,10 +86,12 @@ export interface ApiAuditRun {
   mode: "quick" | "standard" | "deep";
   status: "queued" | "running" | "completed" | "failed" | "cancelled";
   queuedAt: string;
+  startedAt: string | null;
   completedAt: string | null;
   discoveredUrls: number;
   renderedUrls: number;
   issuesCreated: number;
+  summary: Record<string, unknown>;
   errorMessage: string | null;
 }
 

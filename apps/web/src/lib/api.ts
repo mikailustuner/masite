@@ -16,7 +16,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const payload = await response.json().catch(() => null) as T | ProblemDetails | null;
   if (!response.ok) {
     const problem = payload as ProblemDetails | null;
-    throw new ApiError(problem?.detail ?? "İstek tamamlanamadı.", response.status, problem?.code ?? "REQUEST_FAILED");
+    const error = new ApiError(problem?.detail ?? "İstek tamamlanamadı.", response.status, problem?.code ?? "REQUEST_FAILED");
+    window.dispatchEvent(new CustomEvent("evidera:api-error", { detail: error }));
+    throw error;
   }
   return payload as T;
 }
@@ -31,6 +33,7 @@ export const api = {
   issue: (issueId: string) => request<ApiIssue>(`/api/issues/${issueId}`),
   updateIssue: (issueId: string, state: ApiIssue["state"]) => request<ApiIssue>(`/api/issues/${issueId}`, { method: "PATCH", body: JSON.stringify({ state }) }),
   audits: (siteId: string) => request<ApiAuditRun[]>(`/api/sites/${siteId}/audits`),
+  activeAudits: () => request<ApiAuditRun[]>("/api/audits/active"),
   startAudit: (siteId: string, mode: ApiAuditRun["mode"]) => request<ApiAuditRun>("/api/audits", { method: "POST", body: JSON.stringify({ siteId, mode }) }),
   audit: (runId: string) => request<ApiAuditRun>(`/api/audits/${runId}`),
   keywords: (siteId: string) => request<TrackedKeyword[]>(`/api/sites/${siteId}/keywords`),
